@@ -1,0 +1,35 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  DATABRICKS_HOST: 'https://adb-4105240484408499.19.azuredatabricks.net'
+  DATABRICKS_TOKEN: '$(DATABRICKS_PAT)'  # Stored in Azure DevOps Library securely
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.10'
+
+- script: |
+    pip install databricks-cli pytest
+  displayName: 'Install Dependencies'
+
+- script: |
+    databricks workspace import_dir notebooks /Shared/retail_pipeline --overwrite
+  env:
+    DATABRICKS_HOST: 'https://adb-4105240484408499.19.azuredatabricks.net'
+    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN)
+  displayName: 'Upload Notebooks to Databricks'
+
+- script: |
+    databricks jobs create --json-file databricks/job_bronze.json
+  displayName: 'Create Bronze Job'
+
+- script: |
+    pytest tests/test_data_quality.py
+  displayName: 'Run Data Quality Tests'
